@@ -1,0 +1,197 @@
+ 1、项目的重构
+   整体目标：实现一个前后端分离的项目
+
+   净美仕项目V1：
+    前端构成：
+     首页、新闻、关于、产品、购物车、登录、注册
+
+    后台接口：
+     购物车、新闻、用户、产品
+    
+    技术架构：
+     后台：php+mysql
+     前端：html+jquery+自己封装的样式
+     
+   净美仕项目v2：
+    在第二版中，准备将之前的后台接口使用python和django来重构
+   
+   净美仕项目v3：
+    在第三版中，使用vue来实现前端页面
+
+ 2、V2
+      user:
+        check_name?uname=zhangsan  
+        register?uname=zhangsan&upwd=123456
+        login?uname=zhangsan&upwd=123456
+      cart:
+       add?cid=1&userid=1
+       delete?cid=1
+       update?cid=1&pid=1&count=1
+       list?cid=1
+      product:
+       list
+       detail？pid=1
+      news：
+       list
+       detail?id=1
+
+   （先来完成前两步：）
+   使用django和python语法将当前净美仕项目中的后台的api重构
+
+     步骤1：
+     C:\xampp\htdocs\codes\django，创建一个project：mfresh
+       
+       django-admin startproject mfresh
+
+     步骤2：要完成app的创建和注册
+     cart/product/news/user
+
+      django-admin startapp cart
+      django-admin startapp product
+      django-admin startapp news
+      django-admin startapp user
+     
+     步骤3：准备模型数据
+      在cart这个app需要准备两个模型数据
+       mfCart:cid/userid
+       mfCartDetail:cartid/pid/count
+      (:- 15:40)
+      在product这个app需要准备一个模型类
+       mfProduct:pid/title/price
+      在news这个app中需要准备一个模型类
+       mfNews:title/content
+      在user这个app需要准备一个模型类
+       mfUser:uname/upwd
+     步骤4：激活模型数据，并注册到admin这个site
+        ①找到当前工程主app的settings.py,将创建的app在此进行注册
+          INSTALLED_APPS = [
+            "cart","product",'news','user'
+          ]
+        ②生成数据库的必要的转换日志文件
+          py manage.py makemigrations
+        ③将模型类转换为数据库中的表
+          py manage.py migrate
+        ④方便在localhost:8000/admin去查看所有的数据，建议：
+         在每一个app中，将模型类注册到它的admin.py中
+          from .models import Cart
+          admin.site.register(Cart)
+        ⑤admin页面访问是需要用户名和密码的
+         py manage.py createsuperuser
+    
+ 
+     (:- 16:50 完成路由系统的搭建)
+
+     步骤5：定义二级路由需要用到的视图views
+        views.py
+         from django.http import HttpResponse
+         from .models import Product
+         import json
+
+         def handleList(request):
+           #接受参数
+           #处理数据
+           #调用模板返回要显示的内容或者直接返回json数据
+            #json.dumps({"code":1})
+            #json.loads('{"code":1}')
+     步骤6：定义二级路由urls
+      每一个app在创建时，默认是没有urls.py文件的
+
+      cart/urls.py
+       from django.urls import path
+       from . import views
+
+       urlpatterns = [
+         path("",views.***)
+       ]
+      
+
+
+      news：
+       list
+       detail?id=1      
+       返回的数据格式：{"code":0,"data":}
+      ①自己直接到amdin中添加5条数据
+      ②list就是获取所有的数据
+      ③detail就是获取指定pid的数据
+     步骤7：在一级路由中配置二级路由
+      mfresh/mfresh/urls.py 配置一级路由
+       from django.urls import path,include
+
+       urlpatterns = [
+         path("cart/",include('cart/urls'))
+       ]  
+     
+     返回json数据{"code":1，"msg":**}
+      user:
+        check_name?uname=zhangsan  
+        register?uname=zhangsan&upwd=123456
+        login?uname=zhangsan&upwd=123456
+      cart:
+       add?cid=1&userid=1
+       delete?cid=1
+       update?cid=1&pid=1&count=1
+       list?cid=1
+      product:
+       list
+       detail？pid=1
+      news：
+       list
+       detail?id=1
+     
+     步骤8：具体实现api
+       (:- 17:15)
+       user:
+        register?uname=zhangsan&upwd=123456
+        check_name?uname=zhangsan  
+        login?uname=zhangsan&upwd=123456
+	①实现register
+	 接收请求中的参数，插入到数据库中
+	②实现check_name
+	 接收参数，查询指定的用户名是否可用
+	③实现login
+	 就收参数，查询指定的用户名和密码的用户是否存在
+       
+       news:
+        准备工作: 
+	  登录到admin,手工的添加5条新闻数据
+        list：
+	 {"code":1,"list":**}
+        detail?id=1
+         {"code":1,"detail":**}
+         {"code":0,"msg":"check detail failed"}
+
+       (:- 9:40)
+       product:
+	参考news中的api的实现
+	
+
+
+
+  遇到的问题：
+   模型类的实例转换为字典（方便做json格式的处理）?
+    解决方案1：
+     自己构建字典
+    解决方案2：
+     读取实例对象__dict__属性
+     myProduct = mfProduct.objects.get(pid=1)
+     #通过__dict__属性可以得到一个字典，但是这个字典比原始数据多一个属性_state
+     myDict = myProduct.__dict__ 
+     myDict.pop('_state')
+
+  
+  总结：django是一个很强大的框架，本身支持前端页面的处理(templates),同时也支持后台的处理，包括ORM来完成数据的增删改查等操作、完善的路由配置系统、完善的后台数据管理功能、具体的用户管理机制；
+
+  所遵循的设计模式MTV
+  M:Models 数据模型
+  T:Templates 模板内容 html
+  V:Views 建立起M和T的桥梁，接收用户请求中的数据，操作模型数据，最后可以调用模板内容返回客户端要显示的内容
+
+  django-admin startproject mysite#创建一个project
+
+  py manage.py startapp cart #创建一个app
+  py manage.py runserver #启动服务器 端口8000
+  py manage.py makemigrations #生成ORM的必要的日志文件
+  py manage.py migrate #真正的初始化数据库和表
+  py manage.py createsuperuser #创建一个超级管理员，操作当前工程中所有的数据的增删改查 localhost:8000/admin
+
+    
